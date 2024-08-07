@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi QR Code Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.png') }}">
+</head>
+
+<body class="bg-gradient-to-br from-blue-400 to-purple-500 min-h-screen flex items-center justify-center">
+    <div id="mainContainer"
+        class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md transition-all duration-300 ease-in-out">
+        <h1 class="text-2xl font-bold mb-6 text-center">WiFi QR Code Generator</h1>
+        <div id="formContainer">
+            <form id="wifiForm" method="post" class="space-y-4 w-full">
+                <div>
+                    <label for="ssid" class="block text-gray-700">SSID:</label>
+                    <input type="text" id="ssid" name="ssid" required aria-describedby="ssidError" autocomplete="off"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <span id="ssidError" class="text-red-500 text-sm"></span>
+                </div>
+                <div>
+                    <label for="password" class="block text-gray-700">Password:</label>
+                    <div class="relative">
+                        <input type="password" id="password" name="password" aria-describedby="passwordError"
+                            autocomplete="off"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <button type="button" id="togglePassword" class="absolute right-2 top-2 text-gray-600">
+                            Show
+                        </button>
+                    </div>
+                    <span id="passwordError" class="text-red-500 text-sm"></span>
+                </div>
+                <div>
+                    <label for="auth_type" class="block text-gray-700">Auth Type:</label>
+                    <select id="auth_type" name="auth_type"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="WPA">WPA/WPA2</option>
+                        <option value="WEP">WEP</option>
+                        <option value="nopass">No Password</option>
+                    </select>
+                </div>
+                <div class="text-center">
+                    <button type="submit"
+                        class="w-full bg-indigo-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-indigo-600">Generate
+                        QR Code</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="qrCodeContainer" class="hidden flex flex-col items-center justify-center">
+            <h2 class="text-xl font-bold text-center mb-4">Generated QR Code:</h2>
+            <img id="qrCode" src="" alt="WiFi QR Code"
+                class="border border-gray-300 rounded-md w-48 h-48 object-contain mb-4">
+            <div class="flex space-x-4 mb-4">
+                <button id="downloadQR"
+                    class="w-48 bg-green-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-green-600">
+                    Download QR Code
+                </button>
+                <button id="newQRCode"
+                    class="w-48 bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600">
+                    Generate New QR Code
+                </button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('wifiForm');
+        const formContainer = document.getElementById('formContainer');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const qrCodeImage = document.getElementById('qrCode');
+        const downloadButton = document.getElementById('downloadQR');
+        const newQRCodeButton = document.getElementById('newQRCode');
+        const togglePasswordButton = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        function expandContainer() {
+            const mainContainer = document.getElementById('mainContainer');
+            mainContainer.classList.remove('max-w-md');
+            mainContainer.classList.add('max-w-lg');
+        }
+
+        function showQRCode() {
+            formContainer.classList.add('hidden');
+            qrCodeContainer.classList.remove('hidden');
+        }
+
+        function resetForm() {
+            form.reset();
+            formContainer.classList.remove('hidden');
+            qrCodeContainer.classList.add('hidden');
+            const mainContainer = document.getElementById('mainContainer');
+            mainContainer.classList.remove('max-w-lg');
+            mainContainer.classList.add('max-w-md');
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (validateForm()) {
+                expandContainer();
+                const formData = new FormData(form);
+                const response = await fetch('/', {
+                    method: 'POST',
+                    body: formData
+                });
+                const blob = await response.blob();
+                const objectURL = URL.createObjectURL(blob);
+                qrCodeImage.src = objectURL;
+                showQRCode();
+            }
+        });
+
+        downloadButton.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.href = qrCodeImage.src;
+            link.download = 'wifi_qr_code.png';
+            link.click();
+        });
+
+        newQRCodeButton.addEventListener('click', resetForm);
+
+        togglePasswordButton.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            togglePasswordButton.textContent = type === 'password' ? 'Show' : 'Hide';
+        });
+
+
+        function validateForm() {
+            const ssid = document.getElementById('ssid').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const authType = document.getElementById('auth_type').value;
+            let valid = true;
+
+            document.getElementById('ssidError').innerText = "";
+            document.getElementById('passwordError').innerText = "";
+
+            if (ssid === "") {
+                document.getElementById('ssidError').innerText = "SSID cannot be empty";
+                valid = false;
+            } else if (ssid.length < 1 || ssid.length > 32) {
+                document.getElementById('ssidError').innerText = "SSID must be between 1 and 32 characters";
+                valid = false;
+            }
+
+            if ((authType === "WPA" || authType === "WEP") && password === "") {
+                document.getElementById('passwordError').innerText = "Password cannot be empty for WPA/WEP";
+                valid = false;
+            } else if (authType === "WPA" && (password.length < 8 || password.length > 63)) {
+                document.getElementById('passwordError').innerText =
+                    "Password for WPA/WPA2 must be between 8 and 63 characters";
+                valid = false;
+            } else if (authType === "WEP" && !(password.length === 5 || password.length === 13 || password.length ===
+                    16)) {
+                document.getElementById('passwordError').innerText =
+                    "Password for WEP must be exactly 5, 13, or 16 characters";
+                valid = false;
+            }
+
+            return valid;
+        }
+    </script>
+</body>
+
+</html>
